@@ -7,7 +7,7 @@ using MTGInstaller.YAML;
 namespace MTGInstallerEto {
 	public class Log : TextArea {
 		public Log() {
-			Size = new Size(320, 480);
+			Size = new Size(320, 200);
 			Text = "";
 			ReadOnly = true;
 		}

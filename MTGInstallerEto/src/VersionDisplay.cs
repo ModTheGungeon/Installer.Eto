@@ -10,7 +10,8 @@ namespace MTGInstallerEto {
 
 		public VersionDisplay() {
 			Orientation = Orientation.Vertical;
-			Items.Add(List = new ListBox { Size = new Size(340, 200), Enabled = false});
+			Items.Add(new Label { Text = "Progress" });
+			Items.Add(List = new ListBox { Size = new Size(340, 300), Enabled = false});
 		}
 
 		public void ConnectTo(ComponentList list) {

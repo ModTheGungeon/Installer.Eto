@@ -13,55 +13,83 @@ namespace MTGInstallerEto {
 		public Downloader Downloader;
 		public Installer Installer;
 
-		public Task InstallTask;
+		public Task CurrentTask;
 
 		public DynamicLayout MainLayout;
 
 		public Log Log;
 
 		public ExeSelector ExeSelector;
+		public StackLayout CheckboxesLayout;
 		public ComponentList ComponentList;
+		public Options Options;
 		public VersionDisplay VersionDisplay;
 		public Button InstallButton;
-
-		public Queue<string> LogMessages = new Queue<string>();
-
+		public Button UninstallButton;
+		
 		public InstallerForm() {
+			KeyDown += (sender, e) => {
+				Console.WriteLine($"XXX {e.Key}");
+				if (e.Key.HasFlag(Keys.Enter) && e.Modifiers.HasFlag(Keys.Control)) Options.Visible = true;
+			};
+
+			AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler((sender, e) => {
+				var ex = (Exception)e.ExceptionObject;
+				Log.WriteLine("\nUnhandled error!");
+				Log.WriteLine(ex.Message);
+			});
+
 			Downloader = new Downloader();
 			Installer = new Installer(Downloader, null);
 
 			Title = $"Mod the Gungeon Installer {Installer.Version}";
-			ClientSize = new Size(640, 480);
+			ClientSize = new Size(640, 400);
 
 			MainLayout = new DynamicLayout();
+
+
 
 			MainLayout.BeginHorizontal();
 
 			MainLayout.BeginVertical();
-			MainLayout.Add(new Label { Text = "Fun log" });
+			MainLayout.Add(new Label { Text = "Output log" });
 			MainLayout.Add(Log = new Log());
+			MainLayout.Add(new ImageView { Image = Bitmap.FromResource("icon") }, false, false);
 			MainLayout.EndVertical();
 
 			MainLayout.BeginVertical();
-			MainLayout.Add(new Label { Text = "Extremely Rudimentary GUI Installer" });
+			MainLayout.Add(new Label { Text = "Path to the Gungeon executable" });
 			MainLayout.Add(ExeSelector = new ExeSelector());
 			Installer.ChangeExePath(ExeSelector.Path);
-			ExeSelector.PathChanged += (sender, e) => Installer.ChangeExePath(ExeSelector.Path);
-			MainLayout.Add(ComponentList = new ComponentList(Downloader.Components.Values));
-			ComponentList.SelectedVersionsChanged += (sender, e) => {
-				InstallButton.Enabled = ComponentList.SelectedVersions.Count > 0;
+			ExeSelector.PathChanged += (sender, e) => {
+				Installer.ChangeExePath(ExeSelector.Path);
+				UpdateInstallButton();
 			};
+
+			MainLayout.Add(CheckboxesLayout = new StackLayout {
+				Orientation = Orientation.Horizontal,
+			});
+
+			ComponentList = new ComponentList(Downloader.Components.Values);
+			Options = new Options { Visible = false };
+			ComponentList.SelectedVersionsChanged += (sender, e) => UpdateInstallButton();
+
+			ShowCheckboxes();
+
 			MainLayout.Add(null, false, true);
-			MainLayout.Add(VersionDisplay = new VersionDisplay());
+			VersionDisplay = new VersionDisplay();
 			VersionDisplay.ConnectTo(ComponentList);
-			MainLayout.Add(InstallButton = new Button { Text = "Install", Size = new Size(100, -1), Enabled = false }, false, false);
+			MainLayout.Add(InstallButton = new Button { Text = "Install", Enabled = false, Size = new Size(100, -1) }, true, false);
+			MainLayout.Add(UninstallButton = new Button { Text = "Uninstall", Size = new Size(100, -1) }, true, false);
+
 			InstallButton.Click += (sender, e) => Install();
+			UninstallButton.Click += (sender, e) => Uninstall();
 
 			MainLayout.EndVertical();
 
 			Content = MainLayout;
 
-			Log.WriteLine("Installer initialized");
+			Log.WriteLine("Welcome!");
 
 			var subscriber = new Logger.Subscriber((logger, loglevel, indent, str) => {
 				var formatted = logger.String(loglevel, str, indent);
@@ -70,41 +98,111 @@ namespace MTGInstallerEto {
 			Logger.Subscribe(subscriber);
 		}
 
-		public void Install() {
-			Log.WriteLine("Installing");
+		public void UpdateInstallButton() {
+			InstallButton.Enabled = ExeSelector.Path != null && ComponentList.SelectedVersions.Count > 0;
+		}
+
+		public void ShowCheckboxes() {
+			CheckboxesLayout.Items.Clear();
+			CheckboxesLayout.Items.Add(ComponentList);
+			CheckboxesLayout.Items.Add(Options);
+		}
+
+		public void ShowStatus() {
+			CheckboxesLayout.Items.Clear();
+			CheckboxesLayout.Items.Add(VersionDisplay);
+		}
+
+		public void Uninstall() {
 			Log.Clear();
+			Log.WriteLine("Reverting...");
 			Block();
 
-			InstallTask = Task.Run(() => {
-				Application.AsyncInvoke(() => VersionDisplay.SetIndex(0));
+			CurrentTask = Task.Run(() => {
+				try {
+					Installer.Restore(force: true);
+				} catch (Exception e) {
+					_PostUninstall(e);
+					return;
+				}
 
-				foreach (var version in ComponentList.SelectedVersions) {
-					var ver = version.Version;
+				_PostUninstall();
+			});
+		}
 
-					using (var build = Downloader.Download(ver)) {
-						var installable = new Installer.InstallableComponent(version.Component, ver, build);
+		private void _PostUninstall(Exception e = null) {
+			Application.AsyncInvoke(() => {
+				if (e != null) {
+					Log.WriteLine($"\nError while uninstalling: {_CorrectExceptionText(e.Message)}");
+					MessageBox.Show(_CorrectExceptionText(e.Message), "Error while installing", MessageBoxType.Error);
+				} else {
+					Log.WriteLine("\nDone.");
+				}
 
-						Installer.Restore();
-						Installer.Backup();
-						Installer.InstallComponent(installable, leave_mmdlls: true);
+				CurrentTask.Wait();
+				CurrentTask = null;
+
+				Unblock();
+			});
+		}
+
+		public void Install() {
+			Log.Clear();
+			Log.WriteLine("Installing...");
+			Block();
+
+			ShowStatus();
+
+			CurrentTask = Task.Run(() => {
+				try {
+					Application.AsyncInvoke(() => VersionDisplay.SetIndex(0));
+
+					foreach (var version in ComponentList.SelectedVersions) {
+						var ver = version.Version;
+
+						using (var build = Downloader.Download(ver)) {
+							var installable = new Installer.InstallableComponent(version.Component, ver, build);
+
+							if (!Options.ForceBackupOption) Installer.Restore();
+							Installer.Backup(Options.ForceBackupOption);
+
+							if (!Options.SkipVersionChecksOption) {
+								installable.ValidateGungeonVersion(Autodetector.GetVersionIn(ExeSelector.Path));
+							}
+
+							Installer.InstallComponent(installable, leave_mmdlls: Options.LeavePatchDLLsOption);
+						}
+
+						Application.AsyncInvoke(() => VersionDisplay.IncreaseIndex());
 					}
-
-					Application.AsyncInvoke(() => VersionDisplay.IncreaseIndex());
+				} catch (Exception e) {
+					_PostInstall(e);
+					return;
 				}
 
 				_PostInstall();
 			});
 		}
 
-		private void _PostInstall() {
-			Application.AsyncInvoke(() => {
-				Log.WriteLine("\nDone.");
+		private string _CorrectExceptionText(string msg) {
+			return msg.Replace("'--force'", "the 'Skip Version Checks' advanced option");
+		}
 
-				InstallTask.Wait();
-				InstallTask = null;
+		private void _PostInstall(Exception e = null) {
+			Application.AsyncInvoke(() => {
+				if (e != null) {
+					Log.WriteLine($"\nError while installing: {_CorrectExceptionText(e.Message)}");
+					MessageBox.Show(_CorrectExceptionText(e.Message), "Error while installing", MessageBoxType.Error);
+				} else {
+					Log.WriteLine("\nDone.");
+				}
+
+				CurrentTask.Wait();
+				CurrentTask = null;
 
 				Unblock();
 				VersionDisplay.DisableIndex();
+				ShowCheckboxes();
 			});
 		}
 
@@ -113,13 +211,15 @@ namespace MTGInstallerEto {
 			ComponentList.Enabled = false;
 			VersionDisplay.Enabled = false;
 			InstallButton.Enabled = false;
+			UninstallButton.Enabled = false;
 		}
 
 		public void Unblock() {
 			ExeSelector.Enabled = true;
 			ComponentList.Enabled = true;
 			VersionDisplay.Enabled = true;
-			InstallButton.Enabled = true;
+			UpdateInstallButton();
+			UninstallButton.Enabled = true;
 		}
 
 		[STAThread]

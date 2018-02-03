@@ -13,16 +13,12 @@ namespace MTGInstallerEto {
 
 		public event EventHandler<EventArgs> SelectedVersionsChanged;
 
-		private static Size _GlobeIconSize = new Size(16, 16);
-
-		private static Logger _Logger = new Logger(nameof(ComponentList));
-
 		private void _SetRadioButtonSetState(ETGModComponent key, bool enabled) {
 			List<RadioButton> controls;
 			if (RadioButtonMap.TryGetValue(key, out controls)) {
 				foreach (var control in controls) {
 					control.Enabled = enabled;
-					control.Visible = enabled;
+					control.Parent.Visible = enabled;
 					if (control.Checked) {
 						if (enabled) SelectedVersions.Add((ComponentVersion)control.Tag);
 						else SelectedVersions.Remove((ComponentVersion)control.Tag);
@@ -35,14 +31,12 @@ namespace MTGInstallerEto {
 		public void CheckEvent(object sender, EventArgs args) {
 			var checkbox = (CheckBox)sender;
 			var component = (ETGModComponent)checkbox.Tag;
-			_Logger.Debug($"Checked '{component.Name}' - toggling radio buttons");
 			_SetRadioButtonSetState(component, checkbox.Checked.GetValueOrDefault());
 		}
 
 		public void RadioCheckEvent(object sender, EventArgs args) {
 			var radiobutton = (RadioButton)sender;
 			var version = (ComponentVersion)radiobutton.Tag;
-			_Logger.Debug($"Toggled '{version.Version.DisplayName}' - updating version list");
 			if (radiobutton.Checked) SelectedVersions.Add(version);
 			else SelectedVersions.Remove(version);
 
@@ -52,9 +46,12 @@ namespace MTGInstallerEto {
 		public ComponentList(IEnumerable<ETGModComponent> components) {
 			Orientation = Orientation.Vertical;
 			Components = components;
+			Size = new Size(160, -1);
+
+			Items.Add(new Label { Text = "Components" });
 
 			foreach (var component in components) {
-				var checkbox = new CheckBox { Text = component.Name, Tag = component };
+				var checkbox = new CheckBox { Text = component.Name, Tag = component, Size = new Size(160, -1) };
 				checkbox.CheckedChanged += CheckEvent;
 				Items.Add(checkbox);
 
@@ -71,12 +68,19 @@ namespace MTGInstallerEto {
 						button = new RadioButton(control);
 					}
 
+					button.Size = new Size(160, -1);
 					button.Tag = new ComponentVersion(component, version);
 					button.Text = version.DisplayName;
 					button.Enabled = false;
-					button.Visible = false;
 					button.CheckedChanged += RadioCheckEvent;
-					Items.Add(button);
+					Items.Add(new StackLayout {
+						Orientation = Orientation.Horizontal,
+						Items = {
+							new Label { Text = "    " },
+							button
+						},
+						Visible = false
+					});
 
 					List<RadioButton> buttons;
 					if (!RadioButtonMap.TryGetValue(component, out buttons)) buttons = RadioButtonMap[component] = new List<RadioButton>();

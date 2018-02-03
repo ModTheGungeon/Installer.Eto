@@ -53,6 +53,7 @@
     <Compile Include="src\ComponentList.cs" />
     <Compile Include="src\VersionDisplay.cs" />
     <Compile Include="src\Log.cs" />
+    <Compile Include="src\Options.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="src\" />
@@ -3002,6 +3003,12 @@
     </EmbeddedResource>
     <EmbeddedResource Include="res\open-iconic\png\folder-2x.png">
       <LogicalName>icon::folder</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="res\icon.png">
+      <LogicalName>icon</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="res\logo.png">
+      <LogicalName>logo</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />

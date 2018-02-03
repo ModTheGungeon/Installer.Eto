@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 
 mkdir -p distrib/bin
 msbuild /p:Configuration=Release

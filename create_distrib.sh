@@ -1,4 +1,6 @@
-#!/bin/sh
+#!/bin/bash
+
+set -e
 
 mkdir -p distrib/bin
 msbuild /p:Configuration=Release /p:Platform=x86

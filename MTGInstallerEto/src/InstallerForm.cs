@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 
 namespace MTGInstallerEto {
 	public class InstallerForm : Form {
+		public static readonly string Version = "03.02.2018";
+
 		public static Application Application;
 
 		public Downloader Downloader;
@@ -44,7 +46,7 @@ namespace MTGInstallerEto {
 			Downloader = new Downloader();
 			Installer = new Installer(Downloader, null);
 
-			Title = $"Mod the Gungeon Installer {Installer.Version}";
+			Title = $"Mod the Gungeon Installer {Version} (core {Installer.Version})";
 			ClientSize = new Size(640, 400);
 
 			MainLayout = new DynamicLayout();

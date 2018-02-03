@@ -38,3 +38,6 @@ Thumbs.db
 
 # dotCover
 *.dotCover
+
+/distrib/bin/
+/distrib/MTGInstaller.zip

@@ -28,6 +28,8 @@ namespace MTGInstallerEto {
 		public Button UninstallButton;
 		
 		public InstallerForm() {
+			Icon = Icon.FromResource("icon");
+
 			KeyDown += (sender, e) => {
 				Console.WriteLine($"XXX {e.Key}");
 				if (e.Key.HasFlag(Keys.Enter) && e.Modifiers.HasFlag(Keys.Control)) Options.Visible = true;
@@ -46,8 +48,6 @@ namespace MTGInstallerEto {
 			ClientSize = new Size(640, 400);
 
 			MainLayout = new DynamicLayout();
-
-
 
 			MainLayout.BeginHorizontal();
 

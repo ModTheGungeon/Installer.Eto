@@ -5,10 +5,16 @@ using MTGInstaller;
 using MTGInstaller.YAML;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Reflection;
 
 namespace MTGInstallerEto {
 	public class InstallerForm : Form {
-		public static readonly string Version = "03.02.2018";
+		public static string Version {
+			get {
+				var attr = Attribute.GetCustomAttribute(Assembly.GetEntryAssembly(), typeof(AssemblyInformationalVersionAttribute)) as AssemblyInformationalVersionAttribute;
+				return attr?.InformationalVersion ?? "???";
+			}
+		}
 
 		public static Application Application;
 

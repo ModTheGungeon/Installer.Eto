@@ -1,0 +1,6 @@
+[submodule "Installer.Headless"]
+	path = Installer.Headless
+	url = https://github.com/modthegungeon/Installer.Headless
+[submodule "MTGInstallerEto/res/open-iconic"]
+	path = MTGInstallerEto/res/open-iconic
+	url = https://github.com/iconic/open-iconic
